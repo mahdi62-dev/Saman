@@ -1,0 +1,223 @@
+﻿using System.Data;
+using System.Data.SqlClient;
+
+namespace DAL;
+
+public class Lib
+{
+    public static void LoadDataToDs(string cnString, bool isCache, DataSet ds, string fields, string fromTable,
+        string dsTable, string strWhere, string sortField)
+    {
+        if (ds.Tables[dsTable] != null && isCache) return;
+
+        if (ds.Tables[dsTable] != null && !isCache) ds.Tables.Remove(dsTable);
+
+        var strSel = "SELECT " + fields + " FROM " + fromTable;
+
+        if (strWhere != null) strSel = strSel + " WHERE " + strWhere;
+
+        if (sortField != null) strSel = strSel + " Order by " + sortField;
+
+
+        //if (ds.Tables[dsTable] != null)
+        //    ds.Tables.Remove(dsTable);
+
+        var con = new SqlConnection { ConnectionString = cnString };
+        var com = new SqlCommand(strSel, con) { CommandType = CommandType.Text };
+
+        var adapt = new SqlDataAdapter { SelectCommand = com };
+
+        var dt = new DataTable();
+        adapt.Fill(dt);
+        dt.TableName = dsTable;
+        ds.Tables.Add(dt);
+
+        con.Close();
+    }
+
+    //=================================================
+    public void LoadDsDataTableBySp(DataSet ds, string dsTable, string spName)
+    {
+        if (ds.Tables[dsTable] != null) ds.Tables.Remove(dsTable);
+
+        var con = new SqlConnection { ConnectionString = cSet.cnString };
+        var com = new SqlCommand(spName, con) { CommandType = CommandType.StoredProcedure };
+
+        var adapt = new SqlDataAdapter { SelectCommand = com };
+
+        var dt = new DataTable();
+        adapt.Fill(dt);
+        dt.TableName = dsTable;
+        ds.Tables.Add(dt);
+
+        con.Close();
+    }
+
+    //====================================================================================================================
+    public static DataTable GetDataTableByCommand(SqlCommand com)
+    {
+        var con = new SqlConnection { ConnectionString = cSet.cnString };
+        com.Connection = con;
+        com.CommandType = CommandType.Text;
+
+        var adapt = new SqlDataAdapter { SelectCommand = com };
+        var dt = new DataTable();
+        adapt.Fill(dt);
+
+        return dt;
+    }
+
+    ////====================================================================================================================
+    public DataTable GetDataTableBySP(SqlCommand com)
+    {
+        var con = new SqlConnection { ConnectionString = cSet.cnString };
+        com.Connection = con;
+        com.CommandType = CommandType.StoredProcedure;
+
+        var adapt = new SqlDataAdapter { SelectCommand = com };
+        var dt = new DataTable();
+        adapt.Fill(dt);
+
+        return dt;
+    }
+
+    ////====================================================================================================================
+    public object GetScalerObjectBySP(SqlCommand com)
+    {
+        var con = new SqlConnection { ConnectionString = cSet.cnString };
+        com.Connection = con;
+        com.CommandType = CommandType.StoredProcedure;
+        object objOutput;
+        con.Open();
+        objOutput = com.ExecuteScalar();
+        con.Close();
+
+        return objOutput;
+    }
+
+    public object GetScalerObject(SqlCommand com)
+    {
+        var con = new SqlConnection { ConnectionString = cSet.cnString };
+        com.Connection = con;
+        object objOutput;
+        con.Open();
+        objOutput = com.ExecuteScalar();
+        con.Close();
+
+        return objOutput;
+    }
+
+    //====================================================================================================================
+
+    public static void ExecuteNonQueryByCommand(SqlCommand com)
+    {
+        var con = new SqlConnection { ConnectionString = cSet.cnString };
+        com.Connection = con;
+
+        con.Open();
+        com.ExecuteNonQuery();
+        con.Close();
+    }
+
+    //====================================================================================================================
+
+    public SqlDataReader DataReaderCommand(SqlCommand com)
+    {
+        var con = new SqlConnection { ConnectionString = cSet.cnString };
+        com.Connection = con;
+        con.Open();
+
+        var dataReader = com.ExecuteReader(CommandBehavior.CloseConnection);
+
+        return dataReader;
+    }
+
+
+    public SqlDataReader GetDataReaderByParm(string query, SqlParameter[] parm)
+    {
+        return SqlHelper.ExecuteReader(cSet.cnString, CommandType.Text, query, parm);
+    }
+
+    public static string GetScaler(string field, string fromTable)
+    {
+        var strSel = "SELECT " + field + " FROM " + fromTable;
+        return SqlHelper.ExecuteScalar(cSet.cnString, CommandType.Text, strSel).ToString();
+    }
+
+    public static string GetScaler(string query)
+    {
+        return SqlHelper.ExecuteScalar(cSet.cnString, CommandType.Text, query).ToString();
+    }
+
+    public static string GetScaler(string field, string fromTable, string strWhere)
+    {
+        var strSel = "SELECT " + field + " FROM " + fromTable + " WHERE " + strWhere;
+        return SqlHelper.ExecuteScalar(cSet.cnString, CommandType.Text, strSel).ToString();
+    }
+
+    public static int GetScalerInt(string field, string fromTable, string strWhere)
+    {
+        var strSel = "SELECT Count(*) FROM " + fromTable + " WHERE " + strWhere;
+        var count = int.Parse(SqlHelper.ExecuteScalar(cSet.cnString, CommandType.Text, strSel).ToString());
+
+        if (count > 0)
+        {
+            strSel = "SELECT " + field + " FROM " + fromTable + " WHERE " + strWhere;
+            return int.Parse(SqlHelper.ExecuteScalar(cSet.cnString, CommandType.Text, strSel).ToString());
+        }
+
+        return 0;
+    }
+
+    public static int GetScalerInt(string field, string fromTable)
+    {
+        var strSel = "SELECT Count(*) FROM " + fromTable;
+        var count = int.Parse(SqlHelper.ExecuteScalar(cSet.cnString, CommandType.Text, strSel).ToString());
+
+        if (count > 0)
+        {
+            strSel = "SELECT " + field + " FROM " + fromTable;
+            return int.Parse(SqlHelper.ExecuteScalar(cSet.cnString, CommandType.Text, strSel).ToString());
+        }
+
+        return 0;
+    }
+
+    public static byte[] GetScalerByte(string field, string fromTable, string strWhere)
+    {
+        var strSel = "SELECT " + field + " FROM " + fromTable + " WHERE " + strWhere;
+
+        if (SqlHelper.ExecuteScalar(cSet.cnString, CommandType.Text, strSel).ToString().Length > 0)
+            return (byte[])SqlHelper.ExecuteScalar(cSet.cnString, CommandType.Text, strSel);
+
+        return null;
+    }
+
+    //============================================================================================================
+    public static void Update(string tableName, string strSet, string strWhere)
+    {
+        var strUpd = "UPDATE " + tableName + " SET " + strSet + " WHERE " + strWhere;
+        SqlHelper.ExecuteNonQuery(cSet.cnString, CommandType.Text, strUpd);
+    }
+
+    //============================================================================================================
+    public static void Insert(string tableName, string fields, string selValues)
+    {
+        var strIns = "Insert Into " + tableName + " (" + fields + ") SELECT " + selValues;
+        SqlHelper.ExecuteNonQuery(cSet.cnString, CommandType.Text, strIns);
+    }
+
+    //============================================================================================================
+    public static void Delete(string tableName, string strWhere)
+    {
+        var strDel = "DELETE FROM " + tableName + " WHERE " + strWhere;
+        SqlHelper.ExecuteNonQuery(cSet.cnString, CommandType.Text, strDel);
+    }
+    //============================================================================================================
+
+    public static void ExecuteNonQuery(string query)
+    {
+        SqlHelper.ExecuteNonQuery(cSet.cnString, CommandType.Text, query);
+    }
+    //============================================================================================================
+}
